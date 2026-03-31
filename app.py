@@ -769,10 +769,18 @@ if uploaded_file:
                 st.caption("버튼을 누르면 각 지표 분석, 위험 신호, 개선 방안, 종합 인사이트를 생성합니다.")
 
         if run_analysis:
-            with st.spinner("AI 에이전트들이 분석 중입니다..."):
-                analyst_result = ask_ai(
-                    "당신은 모바일 게임 KPI를 해석하는 시니어 데이터 분석가입니다.",
-                    f"""
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+
+    try:
+        status_text.info("분석 준비 중... (10%)")
+        progress_bar.progress(10)
+
+        status_text.info("1/4 지표 분석 생성 중... (30%)")
+        progress_bar.progress(30)
+        analyst_result = ask_ai(
+            "당신은 모바일 게임 KPI를 해석하는 시니어 데이터 분석가입니다.",
+            f"""
 아래는 게임 KPI의 사전 요약입니다.
 
 [지표 요약]
@@ -791,11 +799,13 @@ if uploaded_file:
 - 각 지표 해석은 한 줄 또는 두 줄 이내로 짧게 쓰세요.
 - '핵심 변화 요약'에서는 가장 중요한 변화만 3~5개로 정리하세요.
 """
-                )
+        )
 
-                risk_result = ask_ai(
-                    "당신은 라이브 게임 운영 리스크를 점검하는 시니어 운영 전략가입니다.",
-                    f"""
+        status_text.info("2/4 위험 신호 정리 중... (55%)")
+        progress_bar.progress(55)
+        risk_result = ask_ai(
+            "당신은 라이브 게임 운영 리스크를 점검하는 시니어 운영 전략가입니다.",
+            f"""
 아래는 KPI 요약과 Python이 감지한 위험 신호입니다.
 
 [지표 요약]
@@ -820,11 +830,13 @@ if uploaded_file:
 - '지금 당장 액션 필요'에는 진짜 중요한 항목만 1~3개 넣으세요.
 - 각 불릿은 '무슨 문제인지 + 왜 위험한지'가 같이 드러나게 작성하세요.
 """
-                )
+        )
 
-                improvement_result = ask_ai(
-                    "당신은 게임 사업 PM이자 라이브 운영 전략 전문가입니다.",
-                    f"""
+        status_text.info("3/4 개선 방안 생성 중... (80%)")
+        progress_bar.progress(80)
+        improvement_result = ask_ai(
+            "당신은 게임 사업 PM이자 라이브 운영 전략 전문가입니다.",
+            f"""
 아래는 KPI 분석 및 위험 신호입니다.
 
 [지표 요약]
@@ -851,11 +863,13 @@ if uploaded_file:
 - 추상적인 표현보다 실제 액션 중심으로 쓰세요.
 - 예: '검토 필요'보다 '신규 가입 24시간 내 지급 보상 A/B 테스트 진행'처럼 작성하세요.
 """
-                )
+        )
 
-                insight_result = ask_ai(
-                    "당신은 게임 사업 PM 총괄입니다. 팀 공유용으로 인사이트를 정리하세요.",
-                    f"""
+        status_text.info("4/4 종합 인사이트 정리 중... (95%)")
+        progress_bar.progress(95)
+        insight_result = ask_ai(
+            "당신은 게임 사업 PM 총괄입니다. 팀 공유용으로 인사이트를 정리하세요.",
+            f"""
 아래는 게임 KPI 분석 결과입니다.
 
 [지표 요약]
@@ -885,12 +899,18 @@ if uploaded_file:
 - '주목 KPI'는 KPI명 + 왜 봐야 하는지까지 함께 쓰세요.
 - '한 줄 결론'은 한 문장만 작성하세요.
 """
-                )
+        )
 
-            st.session_state.analyst_result = analyst_result
-            st.session_state.risk_result = risk_result
-            st.session_state.improvement_result = improvement_result
-            st.session_state.insight_result = insight_result
+        progress_bar.progress(100)
+        status_text.success("분석 완료! 결과를 아래에서 확인하세요.")
+
+        st.session_state.analyst_result = analyst_result
+        st.session_state.risk_result = risk_result
+        st.session_state.improvement_result = improvement_result
+        st.session_state.insight_result = insight_result
+
+    except Exception as e:
+        status_text.error(f"분석 중 오류가 발생했습니다: {e}")
 
         if st.session_state.insight_result:
             section_space()
