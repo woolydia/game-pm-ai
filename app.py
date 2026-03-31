@@ -769,18 +769,18 @@ if uploaded_file:
                 st.caption("버튼을 누르면 각 지표 분석, 위험 신호, 개선 방안, 종합 인사이트를 생성합니다.")
 
         if run_analysis:
-    progress_bar = st.progress(0)
-    status_text = st.empty()
+            progress_bar = st.progress(0)
+            status_text = st.empty()
 
-    try:
-        status_text.info("분석 준비 중... (10%)")
-        progress_bar.progress(10)
+            try:
+                status_text.info("분석 준비 중... (10%)")
+                progress_bar.progress(10)
 
-        status_text.info("1/4 지표 분석 생성 중... (30%)")
-        progress_bar.progress(30)
-        analyst_result = ask_ai(
-            "당신은 모바일 게임 KPI를 해석하는 시니어 데이터 분석가입니다.",
-            f"""
+                status_text.info("1/4 지표 분석 생성 중... (30%)")
+                progress_bar.progress(30)
+                analyst_result = ask_ai(
+                    "당신은 모바일 게임 KPI를 해석하는 시니어 데이터 분석가입니다.",
+                    f"""
 아래는 게임 KPI의 사전 요약입니다.
 
 [지표 요약]
@@ -793,19 +793,14 @@ if uploaded_file:
 4. 각 섹션은 간결하고 명확하게 작성
 
 {ai_format_rules(["지표별 분석", "핵심 변화 요약"])}
-
-추가 작성 규칙:
-- '지표별 분석'에서는 각 지표명을 굵게 쓰지 말고 일반 텍스트로 시작하세요.
-- 각 지표 해석은 한 줄 또는 두 줄 이내로 짧게 쓰세요.
-- '핵심 변화 요약'에서는 가장 중요한 변화만 3~5개로 정리하세요.
 """
-        )
+                )
 
-        status_text.info("2/4 위험 신호 정리 중... (55%)")
-        progress_bar.progress(55)
-        risk_result = ask_ai(
-            "당신은 라이브 게임 운영 리스크를 점검하는 시니어 운영 전략가입니다.",
-            f"""
+                status_text.info("2/4 위험 신호 정리 중... (55%)")
+                progress_bar.progress(55)
+                risk_result = ask_ai(
+                    "당신은 라이브 게임 운영 리스크를 점검하는 시니어 운영 전략가입니다.",
+                    f"""
 아래는 KPI 요약과 Python이 감지한 위험 신호입니다.
 
 [지표 요약]
@@ -817,26 +812,15 @@ if uploaded_file:
 [지표 조합 위험]
 {chr(10).join(combined_risks) if combined_risks else "없음"}
 
-요청:
-1. 개선이 필요한 위험 신호를 중요도 순으로 정리
-2. 왜 위험한지 설명
-3. 우선순위 기준으로 분류
-4. 실제 운영 의사결정에 도움이 되도록 작성
-
 {ai_format_rules(["지금 당장 액션 필요", "주의", "정상"])}
-
-추가 작성 규칙:
-- 위험이 없는 섹션도 제목은 유지하고, 내용은 '- 해당 사항 없음'으로 작성하세요.
-- '지금 당장 액션 필요'에는 진짜 중요한 항목만 1~3개 넣으세요.
-- 각 불릿은 '무슨 문제인지 + 왜 위험한지'가 같이 드러나게 작성하세요.
 """
-        )
+                )
 
-        status_text.info("3/4 개선 방안 생성 중... (80%)")
-        progress_bar.progress(80)
-        improvement_result = ask_ai(
-            "당신은 게임 사업 PM이자 라이브 운영 전략 전문가입니다.",
-            f"""
+                status_text.info("3/4 개선 방안 생성 중... (80%)")
+                progress_bar.progress(80)
+                improvement_result = ask_ai(
+                    "당신은 게임 사업 PM이자 라이브 운영 전략 전문가입니다.",
+                    f"""
 아래는 KPI 분석 및 위험 신호입니다.
 
 [지표 요약]
@@ -845,31 +829,15 @@ if uploaded_file:
 [위험 신호]
 {risk_result}
 
-요청:
-1. 위험 신호별 개선 방안 제안
-2. 단기(이번 주), 중기(이번 달)로 구분
-3. 이벤트, BM, UX, 리텐션, 복귀 전략 포함
-4. 실행 가능한 액션 아이템으로 작성
-5. 각 항목은 실제 팀이 바로 실행할 수 있는 문장으로 작성
-
 {ai_format_rules(["단기 개선안", "중기 개선안", "바로 실행할 과제"])}
-
-추가 작성 규칙:
-- 절대로 가로줄(---)을 넣지 마세요.
-- '1. 단기 개선안' 바로 아래에는 내용만 작성하세요.
-- '2. 중기 개선안'은 단기 개선안 내용이 모두 끝난 뒤에 바로 이어서 작성하세요.
-- '바로 실행할 과제'는 체크리스트처럼 아주 구체적으로 작성하세요.
-- 각 섹션에는 3~5개 항목만 작성하세요.
-- 추상적인 표현보다 실제 액션 중심으로 쓰세요.
-- 예: '검토 필요'보다 '신규 가입 24시간 내 지급 보상 A/B 테스트 진행'처럼 작성하세요.
 """
-        )
+                )
 
-        status_text.info("4/4 종합 인사이트 정리 중... (95%)")
-        progress_bar.progress(95)
-        insight_result = ask_ai(
-            "당신은 게임 사업 PM 총괄입니다. 팀 공유용으로 인사이트를 정리하세요.",
-            f"""
+                status_text.info("4/4 종합 인사이트 정리 중... (95%)")
+                progress_bar.progress(95)
+                insight_result = ask_ai(
+                    "당신은 게임 사업 PM 총괄입니다. 팀 공유용으로 인사이트를 정리하세요.",
+                    f"""
 아래는 게임 KPI 분석 결과입니다.
 
 [지표 요약]
@@ -884,89 +852,41 @@ if uploaded_file:
 [개선 방안]
 {improvement_result}
 
-요청:
-1. 서비스 상태 진단
-2. 종합 인사이트 3개
-3. 가장 먼저 봐야 할 KPI 3개
-4. 한 줄 결론
-5. 경영진과 실무자가 같이 봐도 이해되게 작성
-
 {ai_format_rules(["서비스 상태 진단", "종합 인사이트", "주목 KPI", "한 줄 결론"])}
-
-추가 작성 규칙:
-- '서비스 상태 진단'은 현재 상황을 2~4줄로 요약하세요.
-- '종합 인사이트'는 정확히 3개만 작성하세요.
-- '주목 KPI'는 KPI명 + 왜 봐야 하는지까지 함께 쓰세요.
-- '한 줄 결론'은 한 문장만 작성하세요.
 """
-        )
+                )
 
-        progress_bar.progress(100)
-        status_text.success("분석 완료! 결과를 아래에서 확인하세요.")
+                progress_bar.progress(100)
+                status_text.success("분석 완료! 결과를 아래에서 확인하세요.")
 
-        st.session_state.analyst_result = analyst_result
-        st.session_state.risk_result = risk_result
-        st.session_state.improvement_result = improvement_result
-        st.session_state.insight_result = insight_result
+                st.session_state.analyst_result = analyst_result
+                st.session_state.risk_result = risk_result
+                st.session_state.improvement_result = improvement_result
+                st.session_state.insight_result = insight_result
 
-    except Exception as e:
-        status_text.error(f"분석 중 오류가 발생했습니다: {e}")
+            except Exception as e:
+                status_text.error(f"분석 중 오류가 발생했습니다: {e}")
 
         if st.session_state.insight_result:
             section_space()
             st.markdown("---")
-            sub_section_space()
 
             with st.expander("1. 각 지표 분석 결과", expanded=True):
-                st.markdown(
-                    format_ai_section_text(st.session_state.analyst_result),
-                    unsafe_allow_html=False
-                )
+                st.markdown(format_ai_section_text(st.session_state.analyst_result))
 
-            sub_section_space()
             with st.expander("2. 위험 신호 정리", expanded=True):
-                st.markdown(
-                    format_ai_section_text(st.session_state.risk_result),
-                    unsafe_allow_html=False
-                )
+                st.markdown(format_ai_section_text(st.session_state.risk_result))
 
-            sub_section_space()
             with st.expander("3. 개선 방안", expanded=True):
                 st.markdown(
                     format_ai_section_text(
                         st.session_state.improvement_result,
                         section_type="improvement"
-                    ),
-                    unsafe_allow_html=False
+                    )
                 )
 
-            sub_section_space()
             with st.expander("4. 종합 인사이트", expanded=True):
-                st.markdown(
-                    format_ai_section_text(st.session_state.insight_result),
-                    unsafe_allow_html=False
-                )
-
-            sub_section_space()
-            result_text = f"""
-[1. 각 지표 분석 결과]
-{format_ai_section_text(st.session_state.analyst_result)}
-
-[2. 위험 신호 정리]
-{format_ai_section_text(st.session_state.risk_result)}
-
-[3. 개선 방안]
-{format_ai_section_text(st.session_state.improvement_result, section_type="improvement")}
-
-[4. 종합 인사이트]
-{format_ai_section_text(st.session_state.insight_result)}
-"""
-            st.download_button(
-                label="분석 결과 다운로드 (.txt)",
-                data=result_text,
-                file_name="game_pm_ai_report.txt",
-                mime="text/plain"
-            )
+                st.markdown(format_ai_section_text(st.session_state.insight_result))
 
     section_space()
     with st.expander("원본 데이터 및 품질 점검 보기", expanded=False):
