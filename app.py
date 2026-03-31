@@ -18,30 +18,30 @@ load_dotenv(".env.local")
 # =========================
 # 한글 폰트 자동 설정
 # =========================
+from pathlib import Path
+from matplotlib import font_manager as fm
+
 def set_korean_font():
-    font_candidates = [
-        "Noto Sans CJK KR",
-        "Noto Sans KR",
-        "NanumGothic",
-        "Nanum Barun Gothic",
-        "NanumBarunGothic",
-        "Malgun Gothic",
-        "AppleGothic",
-        "DejaVu Sans"
+    font_file_candidates = [
+        Path("fonts/NotoSansKR-Regular.ttf"),
+        Path("fonts/NotoSansKR-Regular.otf"),
+        Path("fonts/NotoSansCJKkr-Regular.otf"),
+        Path("fonts/NanumGothic.ttf"),
+        Path("fonts/NanumBarunGothic.ttf"),
     ]
 
-    available_fonts = {f.name for f in fm.fontManager.ttflist}
     selected_font = None
 
-    for font in font_candidates:
-        if font in available_fonts:
-            selected_font = font
+    for font_path in font_file_candidates:
+        if font_path.exists():
+            fm.fontManager.addfont(str(font_path))
+            selected_font = fm.FontProperties(fname=str(font_path)).get_name()
+            plt.rcParams["font.family"] = selected_font
             break
 
-    if selected_font:
+    if not selected_font:
+        selected_font = "DejaVu Sans"
         plt.rcParams["font.family"] = selected_font
-    else:
-        plt.rcParams["font.family"] = "DejaVu Sans"
 
     plt.rcParams["axes.unicode_minus"] = False
     return selected_font
