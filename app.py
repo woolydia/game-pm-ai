@@ -21,7 +21,9 @@ load_dotenv(".env.local")
 def set_korean_font():
     font_candidates = [
         "Noto Sans CJK KR",
+        "Noto Sans KR",
         "NanumGothic",
+        "Nanum Barun Gothic",
         "NanumBarunGothic",
         "Malgun Gothic",
         "AppleGothic",
