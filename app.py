@@ -20,10 +20,11 @@ load_dotenv(".env.local")
 # =========================
 def set_korean_font():
     font_candidates = [
-        "Malgun Gothic",   # Windows
-        "AppleGothic",     # macOS
-        "NanumGothic",     # 나눔고딕
+        "Noto Sans CJK KR",
+        "NanumGothic",
         "NanumBarunGothic",
+        "Malgun Gothic",
+        "AppleGothic",
         "DejaVu Sans"
     ]
 
@@ -37,6 +38,8 @@ def set_korean_font():
 
     if selected_font:
         plt.rcParams["font.family"] = selected_font
+    else:
+        plt.rcParams["font.family"] = "DejaVu Sans"
 
     plt.rcParams["axes.unicode_minus"] = False
     return selected_font
