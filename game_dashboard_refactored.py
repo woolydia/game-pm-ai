@@ -58,19 +58,6 @@ CARD_METRICS = ["접속유저", "신규유저", "복귀유저", "총매출", "PU
 HIGHLIGHT_METRICS = ["접속유저", "신규유저", "복귀유저", "총매출", "PU", "PUR", "ARPPU"]
 CHART_METRICS = ["접속유저", "신규유저", "복귀유저", "총매출", "PU", "PUR", "ARPPU", "플레이시간"]
 
-COMMON_KPI_STYLE_RULES = """
-- 단일 지표는 "지표명 감소(-12.34%)" 또는 "지표명 증가(+5.67%)" 형식으로 작성하세요.
-- 여러 지표가 같은 방향으로 움직인 경우에는 지표명을 묶어서 "A 및 B 감소(-12.34%, -5.67%)" 형식으로 작성하세요.
-- 여러 지표의 방향이 서로 다른 경우에는 각각 "지표명 감소(-12.34%)", "지표명 증가(+5.67%)" 형식으로 분리해 작성하세요.
-- 변화율은 반드시 괄호 안에 작성하세요.
-- 같은 방향의 복수 지표에서는 감소/증가 표현을 한 번만 작성하세요.
-
-[예시]
-- 신규 및 복귀유저 감소(-11.78%, -19.42%)에 따른 유입과 유지 전반 위축
-- 총매출 및 개인매출 감소(-41.48%, -41.55%)에 따른 수익 구조 악화
-- 평균동접 및 플레이시간 증가(+1.97%, +5.98%)에 따른 잔존 유저 참여도 개선
-- PUR 감소(-8.00%)로 결제 전환 효율 저하 우려
-"""
 
 def inject_custom_css():
     st.markdown(
@@ -100,7 +87,7 @@ def inject_custom_css():
 
 .block-container {
     max-width: 1420px;
-    padding-top: 2.2rem;
+    padding-top: 1.15rem;
     padding-bottom: 3rem;
 }
 
@@ -117,12 +104,9 @@ def inject_custom_css():
 .pretty-page-title {
     font-size: 1.85rem;
     font-weight: 800;
-    line-height: 1.35;
     letter-spacing: -0.02em;
     color: var(--color-text);
-    margin: 0 0 0.35rem 0;
-    padding-top: 18px;
-    overflow: visible;
+    margin-bottom: 0.35rem;
 }
 
 .pretty-page-desc {
@@ -492,13 +476,6 @@ button:disabled {
     color: #353848;
     letter-spacing: -0.01em;
 }
-
-div[data-testid="stAlert"] {
-    margin-top: 2px !important;
-    margin-bottom: 0px !important;
-}
-
-
 </style>
 """,
         unsafe_allow_html=True,
@@ -592,17 +569,15 @@ def sub_section_space():
 def render_page_header():
     st.markdown(
         """
-        <div class="pretty-page-title">게임 상태 진단 AI</div>
-
-        <div class="pretty-page-subtitle">
-            게임 KPI를 기반으로 현재 서비스 상태를 진단하고,
-            리스크와 개선 방향을 한눈에 제공해드립니다.
-        </div>
-        """,
-        unsafe_allow_html=True
+<div class="pretty-page-hero">
+    <div class="pretty-page-title">게임 상태 진단 AI</div>
+    <div class="pretty-page-desc">
+        게임 KPI를 기반으로 현재 서비스 상태를 진단하고, 리스크와 개선 방향을 한눈에 제공해드립니다.
+    </div>
+</div>
+""",
+        unsafe_allow_html=True,
     )
-
-    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
 
 def render_section_header(title: str, desc: str):
@@ -1121,236 +1096,15 @@ def make_metric_summary(df: pd.DataFrame, recent_days: int = 7) -> dict:
 
     return summary
 
-def get_recent_prev_windows(df: pd.DataFrame, recent_days: int = 7):
-    if "일자" not in df.columns or df["일자"].isna().all():
-        recent_df = df.tail(recent_days).copy()
-        prev_df = df.iloc[:-recent_days].tail(recent_days).copy()
-        return recent_df, prev_df
-
-    latest_date = df["일자"].max()
-    recent_start = latest_date - pd.Timedelta(days=recent_days - 1)
-    prev_end = recent_start - pd.Timedelta(days=1)
-    prev_start = prev_end - pd.Timedelta(days=recent_days - 1)
-
-    recent_df = df[(df["일자"] >= recent_start) & (df["일자"] <= latest_date)].copy()
-    prev_df = df[(df["일자"] >= prev_start) & (df["일자"] <= prev_end)].copy()
-
-    return recent_df, prev_df
-
-
-def make_revenue_decomposition(df: pd.DataFrame, recent_days: int = 7):
-    required = ["접속유저", "PUR", "ARPPU", "총매출"]
-    if any(col not in df.columns for col in required):
-        return []
-
-    recent_df, prev_df = get_recent_prev_windows(df, recent_days)
-
-    recent = recent_df[required].mean()
-    prev = prev_df[required].mean()
-
-    if prev["총매출"] == 0 or pd.isna(prev["총매출"]):
-        return []
-
-    factors = {
-        "접속유저": safe_pct_change(recent["접속유저"], prev["접속유저"]),
-        "PUR": safe_pct_change(recent["PUR"], prev["PUR"]),
-        "ARPPU": safe_pct_change(recent["ARPPU"], prev["ARPPU"]),
-        "총매출": safe_pct_change(recent["총매출"], prev["총매출"]),
-    }
-
-    def revenue_factor_comment(metric: str, change):
-        if change is None or pd.isna(change):
-            return "해석 불가"
-
-        if metric == "접속유저":
-            if change < 0:
-                return "접속 감소 → 매출 성장 압박"
-            if change > 0:
-                return "접속 증가 → 매출 성장 기반 확대"
-            return "접속 규모 유지"
-
-        if metric == "PUR":
-            if change < 0:
-                return "결제 전환률 하락 → 매출 성장 압박"
-            if change > 0:
-                return "결제 전환률 상승 → 매출 증가 기여"
-            return "결제 전환률 유지"
-
-        if metric == "ARPPU":
-            if change < 0:
-                return "객단가 하락 → 매출 성장 압박"
-            if change > 0:
-                return "객단가 상승 → 매출 감소 요인 방어"
-            return "객단가 유지"
-
-        return "해석 불가"
-
-    rows = []
-
-    for metric in ["접속유저", "PUR", "ARPPU"]:
-        rows.append({
-            "요인": metric,
-            "이전 평균": display_num(metric, prev[metric]),
-            "최근 평균": display_num(metric, recent[metric]),
-            "변화율": display_pct(metric, factors[metric]),
-            "해석": revenue_factor_comment(metric, factors[metric])
-        })
-
-    revenue_change = factors["총매출"]
-
-    if revenue_change is None or pd.isna(revenue_change):
-        revenue_comment = "최종 매출 변화 해석 불가"
-    elif revenue_change > 0:
-        revenue_comment = "최종 매출 증가"
-    elif revenue_change < 0:
-        revenue_comment = "최종 매출 감소"
-    else:
-        revenue_comment = "최종 매출 유지"
-
-    rows.append({
-        "요인": "총매출",
-        "이전 평균": display_num("총매출", prev["총매출"]),
-        "최근 평균": display_num("총매출", recent["총매출"]),
-        "변화율": display_pct("총매출", factors["총매출"]),
-        "해석": revenue_comment
-    })
-
-    return rows
-
-
-def make_weekday_comparison(df: pd.DataFrame):
-    if "일자" not in df.columns or df["일자"].isna().all():
-        return []
-
-    available_metrics = [m for m in HIGHLIGHT_METRICS if m in df.columns]
-    if not available_metrics:
-        return []
-
-    work_df = df.dropna(subset=["일자"]).copy()
-    work_df = work_df.sort_values("일자")
-    work_df["요일"] = work_df["일자"].dt.dayofweek
-
-    latest_row = work_df.iloc[-1]
-    latest_weekday = latest_row["요일"]
-
-    previous_same_weekday = work_df[
-        (work_df["요일"] == latest_weekday) &
-        (work_df["일자"] < latest_row["일자"])
-    ].tail(1)
-
-    if previous_same_weekday.empty:
-        return []
-
-    prev_row = previous_same_weekday.iloc[0]
-
-    rows = []
-
-    for metric in available_metrics:
-        change = safe_pct_change(latest_row[metric], prev_row[metric])
-
-        rows.append({
-            "지표": metric,
-            "최근 일자": latest_row["일자"].strftime("%Y-%m-%d"),
-            "비교 일자": prev_row["일자"].strftime("%Y-%m-%d"),
-            "최근 값": display_num(metric, latest_row[metric]),
-            "같은 요일 이전 값": display_num(metric, prev_row[metric]),
-            "같은 요일 대비": display_pct(metric, change),
-            "판단": priority_from_change(metric, change)
-        })
-
-    return rows
-
-
-def make_trend_signals(df: pd.DataFrame):
-    if "일자" not in df.columns:
-        return []
-
-    rows = []
-    work_df = df.sort_values("일자").copy()
-
-    for metric in CHART_METRICS:
-        if metric not in work_df.columns:
-            continue
-
-        series = work_df[metric].dropna()
-        if len(series) < 4:
-            continue
-
-        last_3 = series.tail(3).tolist()
-        is_3day_down = last_3[0] > last_3[1] > last_3[2]
-        is_3day_up = last_3[0] < last_3[1] < last_3[2]
-
-        rolling_3 = series.rolling(3).mean()
-        rolling_7 = series.rolling(7).mean()
-
-        signal = None
-        if is_3day_down:
-            signal = "최근 3일 연속 하락"
-        elif is_3day_up:
-            signal = "최근 3일 연속 상승"
-        elif len(series) >= 8 and rolling_3.iloc[-1] < rolling_7.iloc[-1]:
-            signal = "단기 평균이 7일 평균보다 낮음"
-
-        if signal:
-            rows.append({
-                "지표": metric,
-                "신호": signal,
-                "최근값": display_num(metric, series.iloc[-1]),
-                "점검 포인트": action_recommendation_for_metric(metric, priority_from_change(metric, safe_pct_change(series.iloc[-1], series.iloc[-4])))
-            })
-
-    return rows
-
-
-def make_anomaly_signals(df: pd.DataFrame):
-    if "일자" not in df.columns:
-        return []
-
-    rows = []
-    work_df = df.sort_values("일자").copy()
-
-    for metric in CHART_METRICS:
-        if metric not in work_df.columns:
-            continue
-
-        metric_df = work_df[["일자", metric]].dropna().copy()
-        if len(metric_df) < 7:
-            continue
-
-        q1 = metric_df[metric].quantile(0.25)
-        q3 = metric_df[metric].quantile(0.75)
-        iqr = q3 - q1
-
-        if iqr == 0 or pd.isna(iqr):
-            continue
-
-        lower = q1 - 1.5 * iqr
-        upper = q3 + 1.5 * iqr
-
-        outliers = metric_df[
-            (metric_df[metric] < lower) |
-            (metric_df[metric] > upper)
-        ].tail(3)
-
-        for _, row in outliers.iterrows():
-            rows.append({
-                "일자": row["일자"].strftime("%Y-%m-%d"),
-                "지표": metric,
-                "값": display_num(metric, row[metric]),
-                "판단": "비정상적으로 낮음" if row[metric] < lower else "비정상적으로 높음"
-            })
-
-    return rows
-
 
 def priority_from_change(metric: str, change):
     if change is None or metric not in THRESHOLDS:
         return "⚪ 참고"
 
     if change <= THRESHOLDS[metric]["critical"]:
-        return "🔴 대응 필요"
+        return "🔴 즉시 대응"
     if change <= THRESHOLDS[metric]["warning"]:
-        return "🟡 관찰 필요"
+        return "🟡 주의"
     return "🟢 정상"
 
 
@@ -1365,9 +1119,9 @@ def severity_icon(metric: str, change):
 
 
 def severity_style(priority):
-    if priority == "🔴 대응 필요":
+    if priority == "🔴 즉시 대응":
         return "danger"
-    if priority == "🟡 관찰 필요":
+    if priority == "🟡 주의":
         return "warning"
     return "normal"
 
@@ -1382,9 +1136,9 @@ def dot_class_from_priority(priority):
 
 
 def status_chip_class(priority):
-    if priority == "🔴 대응 필요":
+    if priority == "🔴 즉시 대응":
         return "chip-red"
-    if priority == "🟡 관찰 필요":
+    if priority == "🟡 주의":
         return "chip-yellow"
     return "chip-green"
 
@@ -1404,7 +1158,7 @@ def make_summary_text(summary: dict) -> str:
 
 
 def action_recommendation_for_metric(metric: str, priority: str):
-    if priority == "🔴 대응 필요":
+    if priority == "🔴 즉시 대응":
         actions = {
             "접속유저": "접속 감소 원인과 유입 채널 변화를 즉시 점검",
             "신규유저": "UA 채널 성과 및 광고·스토어 노출 변화를 우선 점검",
@@ -1448,7 +1202,7 @@ def detect_metric_risks(summary: dict):
 
         priority = priority_from_change(metric, change)
 
-        if priority in ("🔴 대응 필요", "🟡 관찰 필요"):
+        if priority in ("🔴 즉시 대응", "🟡 주의"):
             candidates.append({
                 "지표": metric,
                 "change": change,
@@ -1463,10 +1217,10 @@ def detect_metric_risks(summary: dict):
     for idx, item in enumerate(candidates):
         metric = item["지표"]
 
-        if item["base_priority"] == "🔴 대응 필요" and idx < 2:
-            final_priority = "🔴 대응 필요"
+        if item["base_priority"] == "🔴 즉시 대응" and idx < 2:
+            final_priority = "🔴 즉시 대응"
         else:
-            final_priority = "🟡 관찰 필요"
+            final_priority = "🟡 주의"
 
         rows.append({
             "지표": metric,
@@ -1677,7 +1431,7 @@ def extract_action_items(summary: dict):
         change = values.get("recent_avg_vs_prev_avg_pct")
         priority = priority_from_change(metric, change)
 
-        if priority == "🔴 대응 필요":
+        if priority == "🔴 즉시 대응":
             actions.append({
                 "지표": metric,
                 "변화율": format_pct(change),
@@ -1690,10 +1444,10 @@ def extract_action_items(summary: dict):
 def final_priority_for_metric(metric: str, change, critical_metrics: set):
     base_priority = priority_from_change(metric, change)
 
-    if base_priority == "🔴 대응 필요":
+    if base_priority == "🔴 즉시 대응":
         if metric in critical_metrics:
-            return "🔴 대응 필요"
-        return "🟡 관찰 필요"
+            return "🔴 즉시 대응"
+        return "🟡 주의"
 
     return base_priority
 
@@ -1705,7 +1459,7 @@ def make_summary_table(summary: dict):
         change = values.get("recent_avg_vs_prev_avg_pct")
         priority = priority_from_change(metric, change)
 
-        if priority == "🔴 대응 필요":
+        if priority == "🔴 즉시 대응":
             critical_candidates.append({
                 "metric": metric,
                 "change": change,
@@ -1781,11 +1535,6 @@ def build_dashboard_cache(df: pd.DataFrame):
     summary_df = make_summary_table(summary)
     highlight_lines = make_highlight_summary(summary)
 
-    revenue_decomposition = make_revenue_decomposition(df)
-    weekday_comparison = make_weekday_comparison(df)
-    trend_signals = make_trend_signals(df)
-    anomaly_signals = make_anomaly_signals(df)
-
     return {
         "summary": summary,
         "summary_text": summary_text,
@@ -1794,10 +1543,6 @@ def build_dashboard_cache(df: pd.DataFrame):
         "action_items": action_items,
         "summary_df": summary_df,
         "highlight_lines": highlight_lines,
-        "revenue_decomposition": revenue_decomposition,
-        "weekday_comparison": weekday_comparison,
-        "trend_signals": trend_signals,
-        "anomaly_signals": anomaly_signals,
     }
 
 
@@ -1929,121 +1674,55 @@ def build_combined_risk_text(combined_risks):
 
 def generate_analyst_result(summary_text):
     return ask_ai(
-        "당신은 게임 데이터 분석가입니다.",
+        "당신은 모바일 게임 KPI를 해석하는 시니어 데이터 분석가입니다.",
         f"""
-데이터 기반으로 객관적인 지표 해석을 수행하세요.
+아래는 게임 KPI의 사전 요약입니다.
 
 [지표 요약]
 {summary_text}
 
-[작성 규칙]
+요청:
+1. 각 지표에 대한 핵심 해석
+2. 특히 의미 있는 상승/하락 지표 강조
+3. 숫자 나열보다 PM 관점 해석 중심
+4. 각 섹션은 간결하고 명확하게 작성
 
-[구조]
-- 지표는 반드시 [유저], [수익], [이용 패턴] 그룹으로 나누어 작성하세요.
-- 각 그룹 제목은 반드시 [유저], [수익], [이용 패턴] 중 하나로만 작성하세요.
-- 각 그룹 내 지표는 중요도(하락폭, 영향도) 기준으로 정렬하세요.
-- 가장 중요한 지표를 각 그룹의 최상단에 배치하세요.
-- 각 그룹 제목은 반드시 별도의 줄로 작성하세요.
-- 그룹 제목 아래에만 지표를 나열하세요.
-- 그룹 제목과 지표를 같은 줄에 작성하지 마세요.
-
-[표현]
-- 각 지표는 반드시 한 줄로 작성하세요.
-- "지표명 + 절대값 + (증감률) → 해석" 구조로 작성하세요.
-- 모든 문장은 명사형으로 끝나도록 작성하세요.
-
-[내용]
-- 해석은 반드시 "원인 + 의미"를 함께 포함하세요.
-- 수치(%, 증감률)를 포함하여 작성하세요.
-- 상승/하락 폭이 큰 지표를 우선적으로 설명하세요.
-
-[금지]
-- 추측/가설 작성 금지.
-- 액션(개선 방안) 작성 금지.
-- 동일 의미 반복 금지.
-
-[예시]
-[유저]
-- 신규유저 13,508명 (-11.78%) → 신규 유입 감소에 따른 성장 둔화
-- 복귀유저 2,819명 (-19.42%) → 재참여 감소에 따른 유저 유지력 약화
-
-[수익]
-- PU 20,250명 (-11.17%) → 결제 유저 감소에 따른 수익 기반 축소
-
-[이용 패턴]
-- 플레이시간 324분 (+5.98%) → 이용 시간 증가에 따른 참여도 상승
-
-- 위 예시와 동일한 구조로 반드시 작성하세요.
-- 그룹 제목은 한 번만 작성하고 반복하지 마세요.
-
-{ai_format_rules(["그룹별 지표 분석", "핵심 변화 요약"])}
+{ai_format_rules(["지표별 분석", "핵심 변화 요약"])}
 """
     )
 
 
 def generate_risk_result(summary_text, metric_risks, combined_risks):
     return ask_ai(
-        "당신은 서비스 리스크 매니저입니다.",
+        "당신은 라이브 게임 운영 리스크를 점검하는 시니어 운영 전략가입니다.",
         f"""
-서비스 위험 요소를 식별하고 우선순위를 정리하세요.
+아래는 KPI 요약과 Python이 감지한 위험 신호입니다.
 
-[데이터]
+[지표 요약]
 {summary_text}
 
-[위험 지표]
+[지표별 위험]
 {build_risk_table_text(metric_risks)}
 
 [지표 조합 위험]
 {build_combined_risk_text(combined_risks)}
 
-[작성 규칙]
-- 위험 요소만 작성하세요.
-- 중요도 기준으로 정렬하세요.
-- 모든 문장은 명사형으로 끝나도록 작성하세요.
-- 원인과 영향을 포함하세요.
-- 액션은 작성하지 마세요.
-- 조사(은/는/이/가)를 최소화하고 핵심 수치 중심으로 간결하게 작성하세요.
-- 지표 수치 자체보다 서비스/사업 리스크를 중심으로 설명하세요.
-- 동일 KPI를 반복 나열하지 마세요.
-- KPI 설명보다 실제 영향과 위험도를 우선 설명하세요.
-- 과도하게 자극적인 표현(붕괴, 치명적, 심각한 위기 등)은 사용하지 마세요.
-- "긍정 신호"는 실제 유지되거나 개선 중인 핵심 지표 중심으로 작성하세요.
-
-{COMMON_KPI_STYLE_RULES}
-
-{ai_format_rules(["즉시 대응 필요", "모니터링 필요", "긍정 신호"])}
+{ai_format_rules(["지금 당장 액션 필요", "주의", "정상"])}
 """
     )
 
 
 def generate_improvement_result(summary_text, risk_result):
     return ask_ai(
-        "당신은 게임 그로스 PM입니다.",
+        "당신은 게임 사업 PM이자 라이브 운영 전략 전문가입니다.",
         f"""
-위험 요소를 해결하기 위한 실행 계획을 작성하세요.
+아래는 KPI 분석 및 위험 신호입니다.
 
-[데이터]
+[지표 요약]
 {summary_text}
 
 [위험 신호]
 {risk_result}
-
-[작성 규칙]
-- 즉시 실행 가능한 구체적 액션 중심으로 작성하세요.
-- 액션 문장은 "현재 상황 → 실행 액션" 흐름으로 자연스럽게 작성하세요.
-- "감소 대응", "증가 대응" 같은 표현뿐 아니라 "감소 대응 신규...", "저하 대응 개선..."처럼 부자연스러운 문장 연결도 사용하지 마세요.
-- 필요한 경우에만 수치 또는 KPI 기준을 포함하세요.
-- 모든 문장은 명사형으로 끝나도록 작성하세요.
-- 모호한 표현은 사용하지 마세요.
-- 액션에는 실행 방법(A/B 테스트, 캠페인, UI 개선 등)을 구체적으로 포함하세요.
-- 조사(은/는/이/가)를 최소화하고 핵심 수치 중심으로 간결하게 작성하세요.
-- 문장은 최대한 짧고 실행 액션 중심으로 작성하세요.
-- 위험 신호 내용을 반복하지 말고 실행 액션 자체에 집중하세요.
-- 가능한 경우 KPI 설명 없이 바로 실행 액션부터 작성하세요.
-- "바로 실행할 과제"는 짧은 실행 항목 형태로 작성하세요.
-- 불필요한 배경 설명 없이 즉시 수행 가능한 액션만 작성하세요.
-
-{COMMON_KPI_STYLE_RULES}
 
 {ai_format_rules(["단기 개선안", "중기 개선안", "바로 실행할 과제"])}
 """
@@ -2052,9 +1731,12 @@ def generate_improvement_result(summary_text, risk_result):
 
 def generate_insight_result(summary_text, analyst_result, risk_result, improvement_result):
     return ask_ai(
-        "당신은 게임 사업 총괄(Head of Business)입니다.",
+        "당신은 게임 사업 PM 총괄입니다. 팀 공유용으로 인사이트를 정리하세요.",
         f"""
-분석 결과를 기반으로 전략적 의사결정 인사이트를 작성하세요.
+아래는 게임 KPI 분석 결과입니다.
+
+[지표 요약]
+{summary_text}
 
 [지표 분석]
 {analyst_result}
@@ -2062,30 +1744,10 @@ def generate_insight_result(summary_text, analyst_result, risk_result, improveme
 [위험 신호]
 {risk_result}
 
-[작성 규칙]
-- 핵심만 요약하세요.
-- 중복 내용 절대 금지
-- 모든 문장은 명사형 중심으로 간결하게 작성하세요.
-- 단, 한 줄 결론은 자연스러운 완결형 문장으로 작성하세요.
-- 한 줄 결론은 의미 전달이 명확한 자연스러운 한국어 문장으로 작성하세요.
-- 실행 우선순위 포함
-- 조사(은/는/이/가)를 최소화하고 핵심 수치 중심으로 간결하게 작성하세요.
-- 결론을 먼저 제시하고, 근거는 뒤에 배치하세요.
-- 불필요한 배경 설명은 생략하고 의사결정에 필요한 내용만 작성하세요.
-- 한 줄 결론은 최대 1문장으로 짧고 명확하게 작성하세요.
-- 한 줄 결론은 핵심 메시지를 강조할 수 있도록 따옴표(" ") 안에 작성하세요.
-- 한 줄 결론은 실행 계획보다 최종 방향성과 전략적 판단이 드러나도록 작성하세요.
-- 한 줄 결론은 추상적인 경영 용어보다 실제 서비스 상황이 드러나는 자연스러운 표현으로 작성하세요.
-- "수익성 강화", "성장 토대 확보", "전략 고도화", "구조 개선" 같은 과도하게 추상적인 표현은 최소화하세요.
-- 앞선 섹션 내용을 반복 요약하지 마세요.
-- 경영진 관점의 최종 판단과 우선순위 중심으로 작성하세요.
-- KPI 나열보다 사업 상태와 전략 방향을 우선 설명하세요.
-- 과도하게 자극적인 표현(붕괴, 치명적, 심각한 위기 등)은 사용하지 마세요.
-- 핵심 근거는 KPI 나열보다 사업적 의미와 연결해 작성하세요.
+[개선 방안]
+{improvement_result}
 
-{COMMON_KPI_STYLE_RULES}
-
-{ai_format_rules(["최종 판단", "핵심 근거", "우선 실행 과제", "한 줄 결론"])}
+{ai_format_rules(["서비스 상태 진단", "종합 인사이트", "주목 KPI", "한 줄 결론"])}
 """
     )
 
@@ -2178,7 +1840,7 @@ def render_overview_section(df, action_items, metric_risks, combined_risks, summ
 
     top_risk = None
     for risk in metric_risks:
-        if risk.get("우선순위") == "🔴 대응 필요":
+        if risk.get("우선순위") == "🔴 즉시 대응":
             top_risk = risk
             break
 
@@ -2221,26 +1883,12 @@ def render_overview_section(df, action_items, metric_risks, combined_risks, summ
 
     with top3:
         urgent_status = "danger" if len(action_items) >= 1 else "normal"
-        render_simple_card("경고 지표", f"{len(action_items)}건", status=urgent_status)
+        render_simple_card("긴급 액션", f"{len(action_items)}건", status=urgent_status)
 
     with top4:
-        revenue_change = summary.get("총매출", {}).get("recent_avg_vs_prev_avg_pct")
-
-        if revenue_change is None or pd.isna(revenue_change):
-            revenue_value = "계산 불가"
-            revenue_status = "warning"
-        elif revenue_change <= -5:
-            revenue_value = f"{revenue_change:.2f}% (하락)"
-            revenue_status = "danger"
-        elif revenue_change >= 5:
-            revenue_value = f"{revenue_change:.2f}% (상승)"
-            revenue_status = "normal"
-        else:
-            revenue_value = f"{revenue_change:.2f}% (안정)"
-            revenue_status = "normal"
-
-        render_simple_card("매출 상태", revenue_value, status=revenue_status)
-        
+        risk_count = len(metric_risks) + len(combined_risks)
+        risk_status = "danger" if risk_count >= 5 else "warning" if risk_count >= 1 else "normal"
+        render_simple_card("위험 신호", f"{risk_count}건", status=risk_status)
 
     sub_section_space()
 
@@ -2274,63 +1922,6 @@ def render_risk_section(metric_risks, combined_risks):
         
         st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 
-
-def render_deeper_insight_section(
-    revenue_decomposition,
-    weekday_comparison,
-    trend_signals,
-    anomaly_signals
-):
-    section_space()
-    render_section_header(
-        "심화 진단",
-        "추가 데이터 없이 일자별 KPI만으로 매출 원인과 보조 진단 신호를 점검합니다."
-    )
-
-    with st.container(border=True):
-
-        st.markdown("**매출 변화 원인 분해**")
-
-        if revenue_decomposition:
-            st.dataframe(
-                pd.DataFrame(revenue_decomposition),
-                use_container_width=True,
-                hide_index=True
-            )
-        else:
-            st.info("총매출, 접속유저, PUR, ARPPU가 모두 있어야 매출 분해를 계산할 수 있습니다.")
-
-        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-
-        with st.expander("최근일 기준 같은 요일 비교 보기", expanded=False):
-            if weekday_comparison:
-                st.dataframe(
-                    pd.DataFrame(weekday_comparison),
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.info("같은 요일과 비교할 과거 데이터가 부족합니다.")
-
-        with st.expander("추세 신호 보기", expanded=False):
-            if trend_signals:
-                st.dataframe(
-                    pd.DataFrame(trend_signals),
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.success("뚜렷한 연속 하락/상승 추세가 감지되지 않았습니다.")
-
-        with st.expander("이상치 신호 보기", expanded=False):
-            if anomaly_signals:
-                st.dataframe(
-                    pd.DataFrame(anomaly_signals),
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.success("IQR 기준 이상치가 감지되지 않았습니다.")
 
 def render_pretty_kpi_card(metric: str, latest, change):
     priority = priority_from_change(metric, change) or "정상"
@@ -2498,7 +2089,12 @@ def render_ai_section(summary_text, metric_risks, combined_risks):
     )
 
     with st.container(border=True):
-        
+        top_risks = [r for r in metric_risks if r.get("우선순위") == "🔴 즉시 대응"]
+
+        if top_risks:
+            risk_metrics = ", ".join([r["지표"] for r in top_risks])
+            st.warning(f"📌 핵심 결론: {risk_metrics} 감소 → 즉각적인 대응이 필요합니다.")
+
         button_col1, button_col2, spacer_col = st.columns([1, 1, 3])
 
         with button_col1:
@@ -2561,32 +2157,12 @@ def render_data_preview_section(df):
 def render_dashboard(df):
     cached = build_dashboard_cache(df)
 
-    render_overview_section(
-        df,
-        cached["action_items"],
-        cached["metric_risks"],
-        cached["combined_risks"],
-        cached["summary"]
-    )
-
-    render_kpi_card_section(cached["summary"])
-
+    render_overview_section(df, cached["action_items"], cached["metric_risks"], cached["combined_risks"], cached["summary"])
     render_risk_section(cached["metric_risks"], cached["combined_risks"])
-
-    render_deeper_insight_section(
-        cached["revenue_decomposition"],
-        cached["weekday_comparison"],
-        cached["trend_signals"],
-        cached["anomaly_signals"]
-    )
-
+    render_kpi_card_section(cached["summary"])
     render_summary_table_section(cached["summary_df"])
     render_chart_section(df)
-    render_ai_section(
-        cached["summary_text"],
-        cached["metric_risks"],
-        cached["combined_risks"]
-    )
+    render_ai_section(cached["summary_text"], cached["metric_risks"], cached["combined_risks"])
     # render_data_preview_section(df)
 
 
