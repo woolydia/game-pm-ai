@@ -359,43 +359,6 @@ div[data-testid="stDataFrame"] [role="gridcell"] {
     line-height: 1.3 !important;
 }
 
-/* File uploader Korean copy */
-[data-testid="stFileUploaderDropzone"] [data-testid="stMarkdownContainer"] {
-    visibility: hidden;
-    position: relative;
-    min-height: 1.5rem;
-}
-
-[data-testid="stFileUploaderDropzone"] [data-testid="stMarkdownContainer"]::after {
-    content: "파일을 여기에 드래그하거나 클릭하여 업로드하세요.";
-    visibility: visible;
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: inherit;
-    font-size: 1rem;
-    font-weight: 500;
-    text-align: center;
-    padding: 0 1rem;
-}
-
-[data-testid="stFileUploader"] small {
-    visibility: hidden;
-    position: relative;
-    display: inline-block;
-    min-height: 1.2rem;
-}
-
-[data-testid="stFileUploader"] small::after {
-    content: "형태: CSV 파일, 용량: 최대 200MB";
-    visibility: visible;
-    position: absolute;
-    left: 0;
-    top: 0;
-    white-space: nowrap;
-}
 
 /* Buttons */
 div.stButton > button,
